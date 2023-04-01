@@ -150,11 +150,13 @@ for file in textgrid_cantonese:
             # Get normtime f0
             duration = end-start
             f0 = []
-            for x in range(0,number_of_points):
+            # It's better to start with 1, so excluding some purtabation period
+            for x in range(1,number_of_points+1):
                 normtime = start + duration*(x-1)/(number_of_points)
                 f0_at_normtime = call(pitch2, "Get value at time", normtime, 'Hertz', 'Linear')
                 f0_at_normtime_formatted = float("{:.3f}".format(f0_at_normtime))
                 f0.append(f0_at_normtime_formatted)
+                print(normtime, "\t", f0_at_normtime_formatted)
             assert len(f0) == number_of_points
             # print(label, "\t", start, "\t",end, "\t",f0)
             # Get f0 statistics
