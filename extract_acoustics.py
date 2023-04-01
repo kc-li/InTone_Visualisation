@@ -29,6 +29,7 @@ current_directory = pathdict["Cantonese"]
 directory_textgrid = current_directory + "/textgrid_pitch_batch/**/*.TextGrid"
 directory_sound = current_directory + "/sound_original/"
 output_tsv = open("./results/Can_data.tsv","w")
+output_tsv.write("\t".join(["filename", "idx", "character", "case", "minTime", "maxTime", "rhyme", "rhyme_duration", "f0min", "f0max", "f0min_time", "f0max_time", "t1","t2","t3","t4","t5","t6","t7","t8","t9","t10"]) + "\n")
 
 # Play with the actual annotation dataframe
 textgrid_cantonese = glob.glob(directory_textgrid,recursive = True)
@@ -101,7 +102,7 @@ for file in textgrid_cantonese:
                 else:
                     print("Problems: ", textgridname, "\n", char_manual, "\n", template_char, "\n", sen_index)
                     p += 1
-                    print(p)
+                    # print(p)
             else: 
                 if char_manual[p] == '咯' or char_manual[p] == '啊':  
                     case.append("SFP")
@@ -156,7 +157,7 @@ for file in textgrid_cantonese:
                 f0_at_normtime = call(pitch2, "Get value at time", normtime, 'Hertz', 'Linear')
                 f0_at_normtime_formatted = float("{:.3f}".format(f0_at_normtime))
                 f0.append(f0_at_normtime_formatted)
-                print(normtime, "\t", f0_at_normtime_formatted)
+                # print(normtime, "\t", f0_at_normtime_formatted)
             assert len(f0) == number_of_points
             # print(label, "\t", start, "\t",end, "\t",f0)
             # Get f0 statistics
@@ -181,7 +182,7 @@ for file in textgrid_cantonese:
             assert mid < maxtime_char_manual[index]
             # !This is the index in the original list, that can be used to map with the previous list!
             sen_index_rhyme.append(Sen_index[index])
-            rhyme_info = [str(Sen_index[index]), rhyme_label, str(duration), str(f0min_formatted), str(f0max_formatted),str(f0min_time),str(f0max_time)]
+            rhyme_info = [rhyme_label, str(duration), str(f0min_formatted), str(f0max_formatted),str(f0min_time),str(f0max_time)]
             f0_string = map(str, f0)
             rhyme_info.extend(f0_string)
             rhyme_info_series.append(rhyme_info)
@@ -191,6 +192,7 @@ for file in textgrid_cantonese:
     # Write lines to file
     for i in range(0,len(char_manual)):
         out = []
+        out.append(textgridname.split("_")[0])
         out.extend([str(sen_index[i]), char_manual[i], case[i], str(mintime_char_manual[i]), str(maxtime_char_manual[i])])
         if sen_index[i] in sen_index_rhyme:
             rhyme_index = sen_index_rhyme.index(sen_index[i])
