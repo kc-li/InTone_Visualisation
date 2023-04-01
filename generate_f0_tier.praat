@@ -14,7 +14,9 @@ f0_tier = 8
 # Directory: Change depending on the user!"
 dir$ = "/Users/kechun/Documents/0_PhD_working_folder/Cantonese/workflow/"
 sounddir$ = dir$ + "sound_original"
-textgriddir$ = dir$ + "textgrid_checked/processed"
+############# 
+textgriddir$ = dir$ + "textgrid_checked"
+#############
 textgridfile$ = textgriddir$ + "/" + textgridName$ + ".TextGrid"
 soundName$ = textgridName$ - "_checked" + ".wav"
 soundfile$ = sounddir$ + "/" + soundName$
@@ -80,27 +82,43 @@ for interval from 1 to numberOfIntervals
             Set interval text: f0_tier, current_interval, label$
         ### Otherwise, open the textgrid and manually specify
         else 
-            beginPause("Adjust f0 extraction period in textgrid")
-                editor TextGrid 'textgridName$'
-                    # Zoom into the position editor
-                    Select: start, end
-                    Zoom: start, end
-                    start = Get start of selection
-                    end = Get end of selection
-                endeditor
-            clicked = endPause: "Continue",1
-            nocheck Insert boundary: f0_tier, start
-            nocheck Insert boundary: f0_tier, end
+            # I want the script to be run in the background only, therefore not usin 'beginPause' function
+            select 'textgridID'
+            nocheck Insert boundary: f0_tier, interval_start
+            nocheck Insert boundary: f0_tier, interval_end
             # Add interval label
             current_interval = Get low interval at time: f0_tier, end
             Set interval text: f0_tier, current_interval, label$
+            # beginPause("Adjust f0 extraction period in textgrid")
+			# 	select 'textgridID'
+			# 	plus 'soundID'
+			# 	View & Edit
+            #     editor TextGrid 'textgridName$'
+            #         # Zoom into the position editor
+            #         Select: interval_start, interval_end
+            #         Zoom: interval_start, interval_end
+            #         start = Get start of selection
+            #         end = Get end of selection
+            #     endeditor
+            # clicked = endPause: "Continue",1
+			# # Add boundaries & labels
+			# select 'textgridID'
+            # nocheck Insert boundary: f0_tier, start
+            # nocheck Insert boundary: f0_tier, end
+            # # Add interval label
+            # current_interval = Get low interval at time: f0_tier, end
+            # Set interval text: f0_tier, current_interval, label$
         endif
     endif
 endfor
 
 select 'textgridID'
 Remove tier: rhyme_tier
-Save as text file: dir$ + "textgrid_pitch_batch/" + textgridName$ + "_f0.TextGrid"
+Save as text file: dir$ + "textgrid_pitch_batch/" + textgridName$ + ".TextGrid"
+# Remove unnecessary files
+select 'pitchID'
+Remove
+
 
 
 procedure initialise_f0start: pitchobject, start
