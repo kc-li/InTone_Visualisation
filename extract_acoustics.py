@@ -11,9 +11,9 @@ Template = pd.read_excel("Template.xlsx",header=0,sheet_name="Cantonese")
 Template = Template.drop("Original",axis=1)
 Template["Case"] = Template["Case"].str.split(",")
 Template["Sen_index"] = Template["Sen_index"].str.split(",")
-# Compare if len(Trim) == len(Case) for each row
-print(Template["Trim"].str.len().compare(Template["Case"].str.len()))
-print(Template["Trim"].str.len().compare(Template["Sen_index"].str.len()))
+# Compare if len(Trim) == len(Case) for each row (When you want to check the output)
+# print(Template["Trim"].str.len().compare(Template["Case"].str.len()))
+# print(Template["Trim"].str.len().compare(Template["Sen_index"].str.len()))
 # Convert to dictionary 
 template = Template.set_index("Label").T.to_dict("list")
 
@@ -199,11 +199,3 @@ for file in textgrid_cantonese:
             out.extend(rhyme_info_series[rhyme_index])
             # print(out)
         output_tsv.write("\t".join(out) + "\n")
-
-    # Write out the information
-    # data_char_manual = pd.DataFrame([sen_index, char_manual, case, mintime_char_manual, maxtime_char_manual])
-    # data_char_manual = data_char_manual.transpose()
-    # data_char_manual.columns = ["idx","character","case", "minTime","maxTime"]
-    # data_char_manual['name'] = textgridname
-    # fulldata_char = pd.concat([fulldata_char,data_char_manual])
-# fulldata_char.to_csv("./results/Cantonese_char_dur_withcase.csv", index = False)

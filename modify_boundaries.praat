@@ -8,8 +8,11 @@
 
 # Open the files 
 dir$ = "/Users/kechun/Documents/0_PhD_working_folder/Cantonese/workflow/"
-textgriddir$ = dir$ + "textgrid_pitch_batch"
 sounddir$ = dir$ + "sound_original"
+################################
+textgriddir$ = dir$ + "textgrid_pitch_batch/modify"
+#textgriddir$ = dir$ + "textgrid_checked/processed"
+################################
 
 # Loop thorugh all the files in a folder
 textgridstrings = Create Strings as file list: "list", textgriddir$ + "/*.TextGrid"
@@ -41,7 +44,7 @@ if textgridstrings
 
 
         # Combine with sound and open
-		soundName$ = textgridName$ - "_checked_f0.TextGrid" + ".wav"
+		soundName$ = textgridName$ - "_checked.TextGrid" + ".wav"
     	soundID = Read from file: sounddir$ + "/" + soundName$
         select 'textgridID_check'
 		plus 'soundID'
@@ -81,7 +84,7 @@ if textgridstrings
                 plus 'textgridID_check'
                 newtextgridID = Merge
                 Rename: textgridName_current$
-                Save as text file: textgriddir$ + textgridName$
+                Save as text file: textgriddir$ + "/" + textgridName$
             endif
         until clicked = 1 or clicked = 3
 
@@ -91,7 +94,6 @@ if textgridstrings
         plus 'textgridID_check'
         Remove
     endfor
-    ################# Add save function???
 endif
 
 
