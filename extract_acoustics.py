@@ -28,7 +28,8 @@ with open("Directory.txt") as f:
 current_directory = pathdict["Cantonese"]
 directory_textgrid = current_directory + "/textgrid_pitch_batch/**/*.TextGrid"
 directory_sound = current_directory + "/sound_original/"
-output_tsv = open("./results/Can_data.tsv","w")
+###########Specify the output file####################
+output_tsv = open("./results/Can_data2.tsv","w")
 output_tsv.write("\t".join(["filename", "idx", "character", "case", "minTime", "maxTime", "rhyme", "rhyme_duration", "f0min", "f0max", "f0min_time", "f0max_time", "t1","t2","t3","t4","t5","t6","t7","t8","t9","t10"]) + "\n")
 
 # Play with the actual annotation dataframe
@@ -178,10 +179,10 @@ for file in textgrid_cantonese:
                 index += 1
             # The actual index is actually one step back
             index = index-1
+            # !This is the index in the original list, that can be used to map with the previous list!
             # check the tiem stamp indeed in between two values
             assert mid < maxtime_char_manual[index]
-            # !This is the index in the original list, that can be used to map with the previous list!
-            sen_index_rhyme.append(Sen_index[index])
+            sen_index_rhyme.append(sen_index[index])
             rhyme_info = [rhyme_label, str(duration), str(f0min_formatted), str(f0max_formatted),str(f0min_time),str(f0max_time)]
             f0_string = map(str, f0)
             rhyme_info.extend(f0_string)
