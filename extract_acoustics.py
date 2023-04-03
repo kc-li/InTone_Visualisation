@@ -145,8 +145,25 @@ for file in textgrid_files:
     # The second pass
     defaultf0floor = math.floor((0.7 * q1)/ 10) * 10
     defaultf0ceiling = math.ceil((2.5 * q3)/ 10) * 10
-    pitch2 = call(sound, "To Pitch", 0.0, defaultf0floor, defaultf0ceiling)
-
+    # Check if pointprocess file exist
+    pointprocessname = current_directory + "/textgrid_pitch_batch/" + textgridname[:-9] + ".PointProcess"
+    if os.path.isfile(pointprocessname):
+        pointprocess = parselmouth.read(pointprocessname)
+        pitchtier = call(pointprocess, "To PitchTier", 0.02)
+        pitch2 = call(pitchtier, "To Pitch", 0.02, defaultf0floor, defaultf0ceiling)
+        # pitch2 = parselmouth.praat.run_file("Read_pointprocess_to_pitch.praat",pointprocessname, defaultf0floor, defaultf0ceiling)
+    else:
+        pitch2 = call(sound, "To Pitch", 0.0, defaultf0floor, defaultf0ceiling)
+    ## Ad-hoc modification
+    if current_lang == "Chengdu":
+        if textgridname == "S2diaD2_checked.TextGrid":
+            pointprocessname = current_directory + "/textgrid_pitch_batch/" + textgridname[:-9] + ".PointProcess"
+            if os.path.isfile(pointprocessname): continue
+                # print("yes")
+                # pitch2 = parselmouth.praat.run_file("Read_pointprocess_to_pitch.praat",pointprocessname, defaultf0floor, defaultf0ceiling)
+            else:
+                pointprocess = call(sound, "To PointProcess (periodic, cc)", defaultf0floor, defaultf0ceiling)
+                pointprocess.save(current_directory + "/textgrid_pitch_batch/" + textgridname[:-9] + ".PointProcess")
     rhyme_info_series = []
     sen_index_rhyme = []
     for i in range(0, len(f0_tier)):
