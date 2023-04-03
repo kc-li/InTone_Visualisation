@@ -6,8 +6,10 @@ import os
 import parselmouth
 from parselmouth.praat import call
 import math
+####### Current language#######
+current_lang = "Chengdu"
 # Read the excel
-Template = pd.read_excel("Template.xlsx",header=0,sheet_name="Cantonese")
+Template = pd.read_excel("Template.xlsx",header=0,sheet_name=current_lang)
 Template = Template.drop("Original",axis=1)
 Template["Case"] = Template["Case"].str.split(",")
 Template["Sen_index"] = Template["Sen_index"].str.split(",")
@@ -25,17 +27,19 @@ with open("Directory.txt") as f:
     for line in  f:
         (language,path) = line.strip().split(":")
         pathdict[language] = path
-current_directory = pathdict["Cantonese"]
+####################Change the current language#################3
+current_directory = pathdict[current_lang]
 directory_textgrid = current_directory + "/textgrid_pitch_batch/**/*.TextGrid"
 directory_sound = current_directory + "/sound_original/"
-###########Specify the output file####################
-output_tsv = open("./results/Can_data2.tsv","w")
-output_tsv.write("\t".join(["filename", "idx", "character", "case", "minTime", "maxTime", "rhyme", "rhyme_duration", "f0min", "f0max", "f0min_time", "f0max_time", "t1","t2","t3","t4","t5","t6","t7","t8","t9","t10"]) + "\n")
+####################Specify the output file####################
+output_tsv_name = "./results/" + str(current_lang)+ "_data.tsv"
+output_tsv = open(output_tsv_name,"w")
+output_tsv.write("\t".join(["filename", "idx", "character", "case", "minTime", "maxTime", "rhyme", "rhyme_duration", "f0min", "f0max", "f0min_time", "f0max_time", "t1","t2","t3","t4","t5","t6","t7","t8","t9","t10","t11","t12","t13","t14","t15","t16","t17","t18","t19","t20"]) + "\n")
 
 # Play with the actual annotation dataframe
-textgrid_cantonese = glob.glob(directory_textgrid,recursive = True)
+textgrid_files = glob.glob(directory_textgrid,recursive = True)
 fulldata_char = pd.DataFrame()
-for file in textgrid_cantonese:
+for file in textgrid_files:
     ## Propcess the Textgrid for duration information
     tg = textgrid.TextGrid.fromFile(file)
     char_tier_manual = tg[4]
@@ -51,18 +55,19 @@ for file in textgrid_cantonese:
     char_manual = list(filter(lambda a: a != 'sp', char_manual))
     # Match the condition
     textgridname = file.split("/")[-1]
-    condition = re.split("dia[1-2]n?",textgridname.split("_")[0])[1]
-    condition_focus = condition[-1]
+    condition = re.split("diaN?[1-2]?n?",textgridname.split("_")[0])[1]
+    condition_focus = re.search("[1-5]a?",condition).group(0)
     # Check if the string matches
     ## If match, then directly transfer all the information - attention: use .copy()!
     template_char = template[condition][0]
     Case = template[condition][1].copy()
     Sen_index = template[condition][2].copy()
     # Special case correction:
-    if textgridname == "S17dia2AT3_checked.TextGrid":
-        template_char = template_char[4:]
-        Case = Case[4:]
-        Sen_index = Sen_index[4:]
+    if current_lang == "Cantonese":
+        if textgridname == "S17dia2AT3_checked.TextGrid":
+            template_char = template_char[4:]
+            Case = Case[4:]
+            Sen_index = Sen_index[4:]
     # Clean up condition 4
     if condition_focus == "4": 
         char_manual = char_manual[:char_manual.index(template_char[-1])+1]
@@ -127,7 +132,7 @@ for file in textgrid_cantonese:
     sound = parselmouth.Sound(soundname)
     f0_tier = tg[6]
     # The number of points extracted from each interval
-    number_of_points = 10
+    number_of_points = 20
     ## Calculate the best f0 range based on Hirst (2001)
     # The first pass
     pitch1 = call(sound, "To Pitch", 0.0, 50, 800)
