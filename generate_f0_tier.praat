@@ -3,6 +3,7 @@
 # This works for a single file, but it 
 form
     word textgridName S3dia1A1_checked
+    sentence dir /Users/kechun/Documents/0_PhD_working_folder/Cantonese/workflow/
     integer f0min 0
     integer f0max 0
     comment 0 means default
@@ -12,7 +13,6 @@ rhyme_tier = 7
 f0_tier = 8
 # Read the files
 # Directory: Change depending on the user!"
-dir$ = "/Users/kechun/Documents/0_PhD_working_folder/Cantonese/workflow/"
 sounddir$ = dir$ + "sound_original"
 ############# 
 textgriddir$ = dir$ + "textgrid_checked"
@@ -77,7 +77,7 @@ for interval from 1 to numberOfIntervals
             select 'textgridID'
             nocheck Insert boundary: f0_tier, start
             nocheck Insert boundary: f0_tier, end
-            # Add interval label
+            # Add interval label 
             current_interval = Get low interval at time: f0_tier, end
             Set interval text: f0_tier, current_interval, label$
         ### Otherwise, open the textgrid and manually specify
@@ -87,7 +87,7 @@ for interval from 1 to numberOfIntervals
             nocheck Insert boundary: f0_tier, interval_start
             nocheck Insert boundary: f0_tier, interval_end
             # Add interval label
-            current_interval = Get low interval at time: f0_tier, end
+            current_interval = Get low interval at time: f0_tier, interval_end
             Set interval text: f0_tier, current_interval, label$
             # beginPause("Adjust f0 extraction period in textgrid")
 			# 	select 'textgridID'

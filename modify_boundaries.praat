@@ -7,9 +7,9 @@
 # target$ = "A3"
 
 # Open the files 
-dir$ = "/Users/kechun/Documents/0_PhD_working_folder/Cantonese/workflow/"
-sounddir$ = dir$ + "sound_original"
 ################################
+dir$ = "/Users/kechun/Documents/0_PhD_working_folder/Changsha/workflow/"
+sounddir$ = dir$ + "sound_original"
 textgriddir$ = dir$ + "textgrid_pitch_batch/modify"
 #textgriddir$ = dir$ + "textgrid_checked/processed"
 ################################
