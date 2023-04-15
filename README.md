@@ -1,6 +1,6 @@
 ## Website
 
-For an interactive demonstration of audios and figures, go to this [link](https://kc-li.github.io/InTone_Visulisation_Site/)
+For an interactive demonstration of audios and figures, go to this [link](https://kc-li.github.io/InTone_Visualisation_Site/index.html)
 
 ## Audio files
 
