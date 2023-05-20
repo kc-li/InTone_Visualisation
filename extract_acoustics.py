@@ -6,8 +6,11 @@ import os
 import parselmouth
 from parselmouth.praat import call
 import math
+from datetime import date #add today's date
 ####### Current language#######
 current_lang = "Changsha"
+today = date.today()
+today = today.strftime("%y%m%d")
 # Read the excel
 Template = pd.read_excel("Template.xlsx",header=0,sheet_name=current_lang)
 Template = Template.drop("Original",axis=1)
@@ -32,7 +35,7 @@ current_directory = pathdict[current_lang]
 directory_textgrid = current_directory + "/textgrid_pitch_batch/**/*.TextGrid"
 directory_sound = current_directory + "/sound_original/"
 ####################Specify the output file####################
-output_tsv_name = "./results/" + str(current_lang) + "_data.tsv"
+output_tsv_name = "./results/" + today + str(current_lang) + "_data.tsv"
 output_tsv = open(output_tsv_name,"w")
 output_tsv.write("\t".join(["filename", "idx", "character", "case", "minTime", "maxTime", "rhyme", "rhyme_duration", "f0min", "f0max", "f0min_time", "f0max_time", "t1","t2","t3","t4","t5","t6","t7","t8","t9","t10","t11","t12","t13","t14","t15","t16","t17","t18","t19","t20"]) + "\n")
 
@@ -110,7 +113,7 @@ for file in textgrid_files:
                     p += 1
                     # print(p)
             else: 
-                if char_manual[p] == '咯' or char_manual[p] == '啊':  
+                if char_manual[p] == '咯' or char_manual[p] == '啊' or char_manual[p] == '嘞':  
                     case.append("SFP")
                     sen_index.append(0)
                     note.append("SFP")
@@ -145,19 +148,19 @@ for file in textgrid_files:
     # The second pass
     defaultf0floor = math.floor((0.7 * q1)/ 10) * 10
     defaultf0ceiling = math.ceil((2.5 * q3)/ 10) * 10
-    ## Ad-hoc modification
-    if current_lang == "Chengdu":
-        if textgridname == "S2diaD2_checked.TextGrid":
-            pointprocessname = current_directory + "/textgrid_pitch_batch/" + textgridname[:-9] + ".PointProcess"
-            if not os.path.isfile(pointprocessname):
-                pointprocess = call(sound, "To PointProcess (periodic, cc)", defaultf0floor, defaultf0ceiling)
-                pointprocess.save(current_directory + "/textgrid_pitch_batch/" + textgridname[:-9] + ".PointProcess")
-    if current_lang == "Changsha":
-        if textgridname == "S22diaN1F5_checked.TextGrid" or textgridname == "S22diaB5_checked.TextGrid":
-            pointprocessname = current_directory + "/textgrid_pitch_batch/" + textgridname[:-9] + ".PointProcess"
-            if not os.path.isfile(pointprocessname):
-                pointprocess = call(sound, "To PointProcess (periodic, cc)", defaultf0floor, defaultf0ceiling)
-                pointprocess.save(current_directory + "/textgrid_pitch_batch/" + textgridname[:-9] + ".PointProcess")
+    ## Ad-hoc modification (generate point process)
+    # if current_lang == "Chengdu":
+    #     if textgridname == "S2diaD2_checked.TextGrid":
+    #         pointprocessname = current_directory + "/textgrid_pitch_batch/" + textgridname[:-9] + ".PointProcess"
+    #         if not os.path.isfile(pointprocessname):
+    #             pointprocess = call(sound, "To PointProcess (periodic, cc)", defaultf0floor, defaultf0ceiling)
+    #             pointprocess.save(current_directory + "/textgrid_pitch_batch/" + textgridname[:-9] + ".PointProcess")
+    # if current_lang == "Changsha":
+    #     if textgridname == "S22diaN1F5_checked.TextGrid" or textgridname == "S22diaB5_checked.TextGrid":
+    #         pointprocessname = current_directory + "/textgrid_pitch_batch/" + textgridname[:-9] + ".PointProcess"
+    #         if not os.path.isfile(pointprocessname):
+    #             pointprocess = call(sound, "To PointProcess (periodic, cc)", defaultf0floor, defaultf0ceiling)
+    #             pointprocess.save(current_directory + "/textgrid_pitch_batch/" + textgridname[:-9] + ".PointProcess")
     # Check if pointprocess file exist
     pointprocessname = current_directory + "/textgrid_pitch_batch/" + textgridname[:-9] + ".PointProcess"
     if os.path.isfile(pointprocessname):
