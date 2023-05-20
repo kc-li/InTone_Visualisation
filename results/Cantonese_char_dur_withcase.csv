@@ -1,7 +1,0 @@
-idx,character,case,minTime,maxTime,name
-1,阿,Name(prefix),0.23967,0.35562,S3dia1A1_checked_f0.TextGrid
-2,英,Name,0.35562,0.6325,S3dia1A1_checked_f0.TextGrid
-3,开,Verb,0.6325,0.85093,S3dia1A1_checked_f0.TextGrid
-4,咗,Aspect,0.85093,0.95739,S3dia1A1_checked_f0.TextGrid
-5,间,Object,0.95739,1.18931,S3dia1A1_checked_f0.TextGrid
-6,铺,Object,1.18931,1.61964,S3dia1A1_checked_f0.TextGrid
