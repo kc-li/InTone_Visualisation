@@ -7,6 +7,7 @@ import parselmouth
 from parselmouth.praat import call
 import math
 from datetime import date #add today's date
+import difflib as dl
 ####### Current language#######
 current_lang = "Changsha"
 today = date.today()
@@ -42,6 +43,11 @@ output_tsv.write("\t".join(["filename", "idx", "character", "case", "minTime", "
 # Play with the actual annotation dataframe
 textgrid_files = glob.glob(directory_textgrid,recursive = True)
 fulldata_char = pd.DataFrame()
+
+# Report the list
+SFP_dict = {}
+ADD_dict = {}
+REP_dict = {}
 for file in textgrid_files:
     ## Propcess the Textgrid for duration information
     tg = textgrid.TextGrid.fromFile(file)
@@ -65,69 +71,61 @@ for file in textgrid_files:
     template_char = template[condition][0]
     Case = template[condition][1].copy()
     Sen_index = template[condition][2].copy()
+
     # Special case correction:
-    if current_lang == "Cantonese":
-        if textgridname == "S17dia2AT3_checked.TextGrid":
-            template_char = template_char[4:]
-            Case = Case[4:]
-            Sen_index = Sen_index[4:]
+    # if current_lang == "Cantonese":
+    #     if textgridname == "S17dia2AT3_checked.TextGrid":
+    #         template_char = template_char[4:]
+    #         Case = Case[4:]
+    #         Sen_index = Sen_index[4:]
     # Clean up condition 4
-    if condition_focus == "4": 
-        char_manual = char_manual[:char_manual.index(template_char[-1])+1]
-        mintime_char_manual = mintime_char_manual[:char_manual.index(template_char[-1])+1]
-        maxtime_char_manual = maxtime_char_manual[:char_manual.index(template_char[-1])+1]
-    # Start the overall loop
-    if template_char == char_manual:
-        case = Case
-        sen_index = Sen_index
-    else:
-        ### Loop through individual case directly. 
-        p,q = 0,0
-        case = []
-        sen_index = []
-        note = []
-        while p < len(char_manual):
-            if q < len(template_char):
-                if char_manual[p] == template_char[q]:
-                    case.append(Case[q])
-                    sen_index.append(Sen_index[q])
-                    p,q = p+1, q+1
-                    note.append("0")
-                #### if an element is added
-                elif p < len(char_manual)-1 and char_manual[p+1] == template_char[q]:
-                    case.append("EXTRA")
-                    sen_index.append(0)
-                    p += 1
-                    note.append("ADD")
-                #### if an element is deleted
-                elif q < len(char_manual)-1 and char_manual[p] == template_char[q+1]:
-                    q +=1
-                #### if an element is replaced
-                elif q < len(char_manual)-1 and p < len(char_manual)-1 and char_manual[p+1] == template_char[q+1]:
-                    case.append(Case[q])
-                    sen_index.append(Sen_index[q])
-                    note.append("Replace")
-                    p,q = p+1,q+1
-                else:
-                    print("Problems: ", textgridname, "\n", char_manual, "\n", template_char, "\n", sen_index)
-                    p += 1
-                    # print(p)
-            else: 
-                if char_manual[p] == '咯' or char_manual[p] == '啊' or char_manual[p] == '嘞':  
-                    case.append("SFP")
-                    sen_index.append(0)
-                    note.append("SFP")
-                    p +=1
-                else:
-                    case.append("Other final")
-                    sen_index.append(0)
-                    note.append("Other final stuff")
-                    p +=1
+    # if condition_focus == "4": 
+    #     char_manual = char_manual[:char_manual.index(template_char[-1])+1]
+    #     mintime_char_manual = mintime_char_manual[:char_manual.index(template_char[-1])+1]
+    #     maxtime_char_manual = maxtime_char_manual[:char_manual.index(template_char[-1])+1]
+    # New version of using diff functions
+    d = dl.SequenceMatcher(None, char_manual, template_char)
+    info = d.get_opcodes()
+    # Inherent the template sequence and then change
+    case_manual = ["0"]*len(char_manual)
+    sen_index_manual = ["0"]*len(char_manual)
+    for tag, i1, i2, j1, j2 in info:
+        # eqaul
+        if tag == "equal": # string b
+            case_manual[i1:i2] = Case[j1:j2]
+            sen_index_manual[i1:i2] = Sen_index[j1:j2]
+        # replace
+        if tag == "replace": # string b
+            case_manual[i1:i2] = ["REP"] * (i2-i1)
+            # Add to REP dictionary
+            for i in range(i1,i2):
+                if char_manual[i] in REP_dict:
+                    REP_dict[char_manual[i]] += 1
+                else: REP_dict[char_manual[i]] = 1
+        # insert: string b missing a element, ignore
+        # delete: 
+        elif tag == "delete": 
+            case_manual[i1:i2] = ["ADD"] * (i2-i1)
+            for i in range(i1,i2):
+                if char_manual[i] in ADD_dict:
+                    ADD_dict[char_manual[i]] += 1
+                else: ADD_dict[char_manual[i]] = 1
+    # Specify the SFP category
+    if case_manual[-1] == "ADD" and case_manual[-2] != "ADD":
+        case_manual[-1] = "SFP"
+        if char_manual[-1] in SFP_dict:
+            SFP_dict[char_manual[-1]] += 1
+            ADD_dict[char_manual[-1]] -=1
+        else: 
+            SFP_dict[char_manual[-1]] = 1
+            ADD_dict[char_manual[-1]] -=1
+    # Print and see special
+    # if "SFP" in case_manual:
+    #     print(char_manual)
+    #     print(case_manual)
+    #     print(sen_index_manual)
     # Check if the length of list is equal
-    assert len(char_manual) == len(mintime_char_manual) == len(maxtime_char_manual) == len(sen_index) == len(case)
-    # Check where the errors are from
-    # if len(char_manual) != len(sen_index):
-        # print("Unequal:", textgridname, "\n", char_manual, "\n", template_char,"\n", sen_index)
+    assert len(char_manual) == len(mintime_char_manual) == len(maxtime_char_manual) == len(sen_index_manual) == len(case_manual)
     
     ## Incorporate the f0 infomation
     textgridname = file.split("/")[-1]
@@ -207,9 +205,9 @@ for file in textgrid_files:
             # The actual index is actually one step back
             index = index-1
             # !This is the index in the original list, that can be used to map with the previous list!
-            # check the tiem stamp indeed in between two values
+            # check the tiem stamp in between two values
             assert mid < maxtime_char_manual[index]
-            sen_index_rhyme.append(sen_index[index])
+            sen_index_rhyme.append(sen_index_manual[index])
             rhyme_info = [rhyme_label, str(duration), str(f0min_formatted), str(f0max_formatted),str(f0min_time),str(f0max_time)]
             f0_string = map(str, f0)
             rhyme_info.extend(f0_string)
@@ -221,9 +219,20 @@ for file in textgrid_files:
     for i in range(0,len(char_manual)):
         out = []
         out.append(textgridname.split("_")[0])
-        out.extend([str(sen_index[i]), char_manual[i], case[i], str(mintime_char_manual[i]), str(maxtime_char_manual[i])])
-        if sen_index[i] in sen_index_rhyme:
-            rhyme_index = sen_index_rhyme.index(sen_index[i])
+        out.extend([str(sen_index_manual[i]), char_manual[i], case_manual[i], str(mintime_char_manual[i]), str(maxtime_char_manual[i])])
+        if sen_index_manual[i] in sen_index_rhyme:
+            rhyme_index = sen_index_rhyme.index(sen_index_manual[i])
             out.extend(rhyme_info_series[rhyme_index])
             # print(out)
         output_tsv.write("\t".join(out) + "\n")
+
+# Print some information to make sure it looks right
+print("REP dictionary")
+for k, v in sorted(REP_dict.items(),key=lambda x: x[1], reverse=True):
+    print("\t".join([str(k), str(v)]))
+print("ADD dictionary")
+for k, v in sorted(ADD_dict.items(),key=lambda x: x[1], reverse=True):
+    print("\t".join([str(k), str(v)]))
+print("SFP dictionary")
+for k, v in sorted(SFP_dict.items(),key=lambda x: x[1], reverse=True):
+    print("\t".join([str(k), str(v)]))
