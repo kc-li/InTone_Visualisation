@@ -1,0 +1,76 @@
+---
+title: "01.Clean F0 Data"
+output: html_document
+date: "2023-05-21"
+---
+
+```{r setup, include=FALSE}
+library(readr) #read_csv()
+library(dplyr)
+library(stringr)
+library(ggplot2)
+library(tidyr)
+
+data.clean <- function(dataframe){
+  dataframe <- dataframe %>%
+    mutate(
+    dia = str_extract(filename,"diaN?[1-2]?n?"),
+    condition = str_split_i(filename, "diaN?[1-2]?n?",-1),
+    focus = str_sub(filename,-1,-1),
+    tone = str_sub(condition,1,str_length(condition)-1),
+    participant = str_extract(filename, "S[0-9]+"),
+    char_duration = maxTime - minTime,
+    tone = as.factor(tone),
+    focus = as.factor(focus),
+    participant = as.factor(participant),
+    uniqueID = paste0(as.character(filename),"_",as.character(idx))
+  )
+}
+```
+
+## Read data
+```{r basic clean}
+cantonese.raw <- read_tsv("../results/230521Cantonese_data.tsv", col_names = TRUE,show_col_types = FALSE)
+cantonese.clean <- data.clean(cantonese.raw)
+
+cantonese_realf0.raw <- read_tsv("../results/230522Cantonese_realf0_data.tsv", col_names = TRUE,show_col_types = FALSE)
+cantonese_realf0.clean <- data.clean(cantonese_realf0.raw)
+
+# Add a new variable for the last word in the sentence
+## Note: changsha condition 3 needs modification! the last sentence is not part of the word
+cantonese.clean <- cantonese.clean %>%
+  group_by(filename) %>%
+  mutate(
+    boundary = if_else(idx == max(idx, na.rm = TRUE),1,0)
+  ) %>%
+  ungroup()
+
+```
+
+## Check f0 missing data
+
+The listed files need to be manually checked in the folder.
+
+Make sure there is no files left here.
+```{r}
+cantonese.clean[rowSums(is.na(as.matrix(cantonese.clean[,startsWith(names(cantonese.clean), "t")])))>0, ]
+```
+
+## Transform f0 data
+```{r transformation}
+cantonese.long <- cantonese.clean %>%
+  pivot_longer(cols = matches('t[0-9]+', ignore.case = FALSE), names_to = "Time",names_prefix = "t", values_to = "f0") %>% # Convert to the standard long format
+  group_by(participant) %>%
+  mutate(
+    f0ref = mean(f0, na.rm = T),
+    f0_semi = 12*log(f0/f0ref,2)
+  ) %>%
+  ungroup()
+```
+
+## Save the files to use the algorhithm later
+
+```{r}
+write.csv(cantonese.long, "./datafiles/230521Cantonese_forf0check.csv", row.names = FALSE)
+```
+
