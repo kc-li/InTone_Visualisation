@@ -9,7 +9,7 @@ import math
 from datetime import date #add today's date
 import difflib as dl
 ####### Current language#######
-current_lang = "Changsha"
+current_lang = "Cantonese"
 today = date.today()
 today = today.strftime("%y%m%d")
 # Read the excel
@@ -38,7 +38,11 @@ directory_sound = current_directory + "/sound_original/"
 ####################Specify the output file####################
 output_tsv_name = "./results/" + today + str(current_lang) + "_data.tsv"
 output_tsv = open(output_tsv_name,"w")
-output_tsv.write("\t".join(["filename", "idx", "character", "case", "minTime", "maxTime", "rhyme", "rhyme_duration", "f0min", "f0max", "f0min_time", "f0max_time", "t1","t2","t3","t4","t5","t6","t7","t8","t9","t10","t11","t12","t13","t14","t15","t16","t17","t18","t19","t20"]) + "\n")
+output_tsv.write("\t".join(["filename", "idx", "character", "case", "minTime", "maxTime", "rhyme", "rhyme_duration", "f0min", "f0max", "f0min_time", "f0max_time", "t1","t2","t3","t4","t5","t6","t7","t8","t9","t10"]) + "\n")
+# "t11","t12","t13","t14","t15","t16","t17","t18","t19","t20"
+output2_tsv_name = "./results/" + today + str(current_lang) + "_realf0_data.tsv"
+output2_tsv = open(output2_tsv_name,"w")
+output2_tsv.write("\t".join(["filename", "idx", "character", "case", "minTime", "maxTime", "rhyme", "time","f0"]) + "\n")
 
 # Play with the actual annotation dataframe
 textgrid_files = glob.glob(directory_textgrid,recursive = True)
@@ -132,8 +136,13 @@ for file in textgrid_files:
     soundname = directory_sound + textgridname.split("_")[0] + ".wav"
     sound = parselmouth.Sound(soundname)
     f0_tier = tg[6]
-    # The number of points extracted from each interval
-    number_of_points = 20
+    ######################## Time parameters ######################################
+    # Note that the table title needs to be changed accordingly
+    # Normtime: The number of points extracted from each interval
+    number_of_points = 10
+    # Time: Sampling rate
+    time_step = 0.01
+    ##############################################################################
     ## Calculate the best f0 range based on Hirst (2001)
     # The first pass
     pitch1 = call(sound, "To Pitch", 0.0, 50, 800)
@@ -167,25 +176,28 @@ for file in textgrid_files:
         pitch2 = call(pitchtier, "To Pitch", 0.02, defaultf0floor, defaultf0ceiling)
     else:
         pitch2 = call(sound, "To Pitch", 0.0, defaultf0floor, defaultf0ceiling)
+    
     rhyme_info_series = []
+    rhyme_puref0_series = []
     sen_index_rhyme = []
     for i in range(0, len(f0_tier)):
         rhyme_label = f0_tier[i].mark
         if rhyme_label != "":
             start = f0_tier[i].minTime
             end = f0_tier[i].maxTime
+            
             # Get normtime f0
             duration = end-start
-            f0 = []
+            f0_norm = []
             # It's better to start with 1, so excluding some purtabation period
             for x in range(1,number_of_points+1):
                 normtime = start + duration*(x-1)/(number_of_points)
                 f0_at_normtime = call(pitch2, "Get value at time", normtime, 'Hertz', 'Linear')
                 f0_at_normtime_formatted = float("{:.3f}".format(f0_at_normtime))
-                f0.append(f0_at_normtime_formatted)
+                f0_norm.append(f0_at_normtime_formatted)
                 # print(normtime, "\t", f0_at_normtime_formatted)
-            assert len(f0) == number_of_points
-            # print(label, "\t", start, "\t",end, "\t",f0)
+            assert len(f0_norm) == number_of_points
+
             # Get f0 statistics
             f0min = call(pitch2, "Get minimum", start, end, "Hertz", "None")
             f0min_formatted = float("{:.3f}".format(f0min))
@@ -209,11 +221,27 @@ for file in textgrid_files:
             assert mid < maxtime_char_manual[index]
             sen_index_rhyme.append(sen_index_manual[index])
             rhyme_info = [rhyme_label, str(duration), str(f0min_formatted), str(f0max_formatted),str(f0min_time),str(f0max_time)]
-            f0_string = map(str, f0)
-            rhyme_info.extend(f0_string)
+            f0_norm_string = map(str, f0_norm)
+            rhyme_info.extend(f0_norm_string)
             rhyme_info_series.append(rhyme_info)
-            # rhyme_info.extend()
             # print(rhyme_info)
+
+            # Get unnormalised f0
+            f0 = []
+            time_series = []
+            time = start
+            while time < end:
+                f0_at_time = call(pitch2, "Get value at time", time, 'Hertz', 'Linear')
+                f0_at_time_formatted = float("{:.3f}".format(f0_at_time))
+                time_formatted = float("{:.3f}".format(time))
+                time_series.append(time_formatted)
+                f0.append(f0_at_time_formatted)
+                time += time_step
+            assert len(time_series) == len(f0)
+            f0_zipped = list(zip(map(str,time_series), map(str,f0)))
+            rhyme_puref0 = [rhyme_label, f0_zipped]
+            rhyme_puref0_series.append(rhyme_puref0)
+            
     # print(rhyme_info_series)
     # Write lines to file
     for i in range(0,len(char_manual)):
@@ -221,9 +249,19 @@ for file in textgrid_files:
         out.append(textgridname.split("_")[0])
         out.extend([str(sen_index_manual[i]), char_manual[i], case_manual[i], str(mintime_char_manual[i]), str(maxtime_char_manual[i])])
         if sen_index_manual[i] in sen_index_rhyme:
+            # Print norm time rhyme info
             rhyme_index = sen_index_rhyme.index(sen_index_manual[i])
             out.extend(rhyme_info_series[rhyme_index])
-            # print(out)
+            # Print real time rhyme info
+            # rhyme_puref0_series[rhyme_index][1] is the zipped list
+            for tup in rhyme_puref0_series[rhyme_index][1]:
+                out2 = []
+                out2.append(textgridname.split("_")[0])
+                out2.extend([str(sen_index_manual[i]), char_manual[i], case_manual[i], str(mintime_char_manual[i]), str(maxtime_char_manual[i])])
+                out2.append(rhyme_puref0_series[rhyme_index][0])
+                out2.extend(list(tup))
+                # print(out2)
+                output2_tsv.write("\t".join(out2) + "\n")
         output_tsv.write("\t".join(out) + "\n")
 
 # Print some information to make sure it looks right
