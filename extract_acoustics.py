@@ -36,13 +36,13 @@ current_directory = pathdict[current_lang]
 directory_textgrid = current_directory + "/textgrid_pitch_batch/**/*.TextGrid"
 directory_sound = current_directory + "/sound_original/"
 ####################Specify the output file####################
-output_tsv_name = "./results/" + today + str(current_lang) + "_data.tsv"
+output_tsv_name = "./extract_acoustics_results/" + today + str(current_lang) + "_data.tsv"
 output_tsv = open(output_tsv_name,"w")
-output_tsv.write("\t".join(["filename", "idx", "character", "case", "minTime", "maxTime", "rhyme", "rhyme_duration", "f0min", "f0max", "f0min_time", "f0max_time", "t1","t2","t3","t4","t5","t6","t7","t8","t9","t10"]) + "\n")
+output_tsv.write("\t".join(["filename","enum","idx", "character", "case", "minTime", "maxTime", "rhyme", "rhyme_duration", "f0min", "f0max", "f0min_time", "f0max_time", "t1","t2","t3","t4","t5","t6","t7","t8","t9","t10"]) + "\n")
 # "t11","t12","t13","t14","t15","t16","t17","t18","t19","t20"
-output2_tsv_name = "./results/" + today + str(current_lang) + "_realf0_data.tsv"
+output2_tsv_name = "./extract_acoustics_results/" + today + str(current_lang) + "_realf0_data.tsv"
 output2_tsv = open(output2_tsv_name,"w")
-output2_tsv.write("\t".join(["filename", "idx", "character", "case", "minTime", "maxTime", "rhyme", "time","f0"]) + "\n")
+output2_tsv.write("\t".join(["filename","enum", "idx", "character", "case", "minTime", "maxTime", "rhyme", "time","f0"]) + "\n")
 
 # Play with the actual annotation dataframe
 textgrid_files = glob.glob(directory_textgrid,recursive = True)
@@ -247,6 +247,7 @@ for file in textgrid_files:
     for i in range(0,len(char_manual)):
         out = []
         out.append(textgridname.split("_")[0])
+        out.append(str(i)) #as unique ID
         out.extend([str(sen_index_manual[i]), char_manual[i], case_manual[i], str(mintime_char_manual[i]), str(maxtime_char_manual[i])])
         if sen_index_manual[i] in sen_index_rhyme:
             # Print norm time rhyme info
@@ -257,6 +258,7 @@ for file in textgrid_files:
             for tup in rhyme_puref0_series[rhyme_index][1]:
                 out2 = []
                 out2.append(textgridname.split("_")[0])
+                out2.append(str(i)) #as unique ID
                 out2.extend([str(sen_index_manual[i]), char_manual[i], case_manual[i], str(mintime_char_manual[i]), str(maxtime_char_manual[i])])
                 out2.append(rhyme_puref0_series[rhyme_index][0])
                 out2.extend(list(tup))
