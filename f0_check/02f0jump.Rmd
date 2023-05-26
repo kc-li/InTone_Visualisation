@@ -198,11 +198,5 @@ data_annotated %>% filter(flagged_samples==0) -> data_annotated_errs_removed2
 ## flagged_samples: Whether a sample is flagged, either by virtue of exceeding the threshold, or being a carryover error, i.e. all suspect samples. 
 ```
 
-## Next step
-- [] Visualise the wrong f0 contour
-
-```{r}
-
-```
 
 
