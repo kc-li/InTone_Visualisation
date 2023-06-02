@@ -3,15 +3,15 @@
 # It allow you to free modify, and when finished, saved with the P2FA tiers, and save the new file to folder
 # By Katrina Li 21/2/2023
 
-# Future implementation: Allow only open selected
-# target$ = "A3"
-
 # Open the files 
 ################################
-dir$ = "/Users/kechun/Documents/0_PhD_working_folder/Changsha/workflow/"
+dir$ = "/Users/kechun/Documents/0_PhD_working_folder/Cantonese/workflow/"
 sounddir$ = dir$ + "sound_original"
 textgriddir$ = dir$ + "textgrid_pitch_batch/modify"
 #textgriddir$ = dir$ + "textgrid_checked/processed"
+
+
+show_pointprocess = 0
 ################################
 
 # Loop thorugh all the files in a folder
@@ -49,6 +49,15 @@ if textgridstrings
         select 'textgridID_check'
 		plus 'soundID'
 		View & Edit
+
+		# if show_pointprocess is true, then also open the point processes and see
+		if show_pointprocess
+			pointprocessname$ = textgridName$ - "_checked.TextGrid" + ".PointProcess"
+			pointprocessID = Read from file: textgriddir$ + "/" + pointprocessname$
+			select 'soundID'
+			plus 'pointprocessID'
+			View & Edit
+		endif
         
         # Get the default f0 values, which can influence display anyway
         @find_default_f0values
@@ -65,34 +74,54 @@ if textgridstrings
             real("Newfloor", f0floor)
             real("Newceiling", f0ceiling)
             comment("File 'textgridName_current$'(file number 'ifile' of 'numberOfFiles')")
-            clicked = endPause("Skip","Draw","Save",1)
+            clicked = endPause("Skip","Draw","Savepitch", "Save",4)
             if clicked = 1
                 appendInfoLine: textgridName$, " skipped!"
             # Generate f0 figure if there are missing values
             elif clicked = 2
+				f0floor = newfloor
+				foceiling = newceiling
                 editor TextGrid 'textgridName_current$'
                     current_start = Get start of selection
                     current_end = Get end of selection
                 endeditor
-                select 'soundID'
-                To Pitch: 0, f0floor, f0ceiling
+				if show_pointprocess
+					select 'pointprocessID'
+					To PitchTier: 0.02
+					To Pitch: 0.02, f0floor, f0ceiling
+				else
+                	select 'soundID'
+					To Pitch: 0, f0floor, f0ceiling
+				endif
                 pitchID = selected("Pitch")
 				# Draw contour with ten points
                 @draw_pitch_contour: pitchID, current_start, current_end, f0floor, f0ceiling, 10
             elif clicked = 3
+				select 'pitchID'
+				pitchname$ = textgridName$ - "_checked.TextGrid" + ".Pitch"
+				Save as text file: textgriddir$ + "/" + pitchname$
+			elif clicked = 4
                 select 'textgridID_old'
                 plus 'textgridID_check'
                 newtextgridID = Merge
                 Rename: textgridName_current$
                 Save as text file: textgriddir$ + "/" + textgridName$
+				if show_pointprocess
+					select 'pointprocessID'
+					Save as text file: textgriddir$ + "/" + pointprocessname$
+				endif
             endif
-        until clicked = 1 or clicked = 3
+        until clicked = 1 or clicked = 4
 
         # Keep the new files, but delete the rest
         select 'textgridID'
         plus 'textgridID_old'
         plus 'textgridID_check'
         Remove
+		if show_pointprocess
+			select 'pointprocessID'
+			Remove
+		endif
     endfor
 endif
 
