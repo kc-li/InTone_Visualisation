@@ -1,0 +1,113 @@
+---
+title: "230405Combine figures"
+knit: (function(input_file, encoding) {
+    out_dir <- 'docs';
+    rmarkdown::render(input_file,
+      encoding=encoding,
+      output_file=file.path(dirname(input_file), out_dir, 'index.html'))})
+output: html_document
+date: "2023-04-05"
+---
+
+```{r setup, include=FALSE}
+library(patchwork)
+
+```
+
+```{r}
+case.labs <- c("Prefex", "Name", "Verb", "Aspect","Classfier","Object","Suffix")
+names(case.labs) <- c("Name(prefix)","Name","Verb","Aspect", "Classifier", "Object","Object(suffix)")
+rawplot <- function(data){
+    ggplot(data, aes(x = Time, y = F0_semi, group = FocusCon,color = FocusCon, linetype = FocusCon, size = underfocus)) +
+    stat_summary(fun = mean, geom = "smooth") +
+    #scale_color_viridis(discrete = TRUE, option = "TRUE") +
+    scale_color_manual(name = "Focus condition",
+                       breaks = c("F2","F5"),
+                       labels = c("Subject focus","Object focus"),
+                       values = c( "#56B4E9","#E69F00")) +
+    scale_linetype_manual(name = "Focus condition",
+                       breaks = c("F2","F5"),
+                       labels = c("Subject focus","Object focus"),
+                       values = c("solid","dashed")) +
+    scale_size_manual(name = "Focused",
+                      breaks = c("0","1"),
+                      labels = c("Normal","Focused"),
+                      values = c(0.8,1.3),
+                      guide = "none") +
+    facet_grid(tone~case, labeller = labeller(case = case.labs)) + 
+    labs(x="Normalized Time point", y = "F0 in semitone") +
+    theme_bw() +
+    theme(axis.title = element_text(size = 10), 
+        legend.title = element_text (size =12), 
+        legend.text = element_text(size = 15),
+        legend.position = "bottom",
+        plot.title = element_text(size=15),
+        strip.text = element_text(size = 15))
+}
+diffplot <- function(data){
+  ggplot(data, aes(x = Time, y = F0_semi, group = FocusCon,color = FocusCon)) +
+  geom_hline(yintercept = 0,color = "red") + 
+    stat_summary(fun = mean, geom = "smooth") +
+  scale_color_manual(name = "Focus condition",
+                       breaks = c("F2_5"),
+                       labels = c( "Suibject-Object"),
+                       values = c("#000000")) +
+    facet_grid(tone~case,labeller = labeller(case = case.labs)) + 
+    scale_linetype_manual(name = "Focus condition",
+                       breaks = c("F2_5"),
+                       labels = c("Suibject-Object"),
+                       values = c("solid")) +
+  theme_bw()+
+  labs(x="Normalized Time point", y = "F0 in semitone") +
+  theme(axis.title = element_text(size = 10), 
+        legend.title = element_blank(), #element_text (size =12), 
+        legend.text = element_text(size = 15),
+        legend.position = "bottom",
+        plot.title = element_text(size=15),
+        strip.text = element_text(size = 15))
+}
+```
+
+```{r}
+changsha.raw.figure <- changsha.long.sen %>%
+  filter(FocusCon != "F2_1" & FocusCon != "F5_1" & FocusCon != "F2_5" & FocusCon != "F1")
+changsha.diff.figure <- changsha.long.sen %>%
+  filter(FocusCon == "F2_5")
+rawplot(changsha.raw.figure)
+diffplot(changsha.diff.figure)
+```
+```{r}
+chengdu.raw.figure <-chengdu.long.sen %>%
+  filter(FocusCon != "F2_1" & FocusCon != "F5_1" & FocusCon != "F2_5" & FocusCon != "F1")
+chengdu.diff.figure <- chengdu.long.sen %>%
+  filter(FocusCon == "F2_5")
+rawplot(chengdu.raw.figure)
+diffplot(chengdu.diff.figure)
+```
+
+```{r}
+remove_y <- theme(
+  axis.title.y = element_blank()
+  # axis.ticks.y = element_blank(),
+  # axis.text.y = element_blank()
+)
+remove_x <- theme(
+  axis.title.x = element_blank(),
+  axis.ticks.x = element_blank(),
+  axis.text.x = element_blank()
+)
+chengdu.raw <- rawplot(chengdu.raw.figure) + remove_x + theme(strip.text.y = element_blank()) + ggtitle("Chengdu")
+chengdu.diff <- diffplot(chengdu.diff.figure) + remove_y + remove_x
+
+changsha.raw <- rawplot(changsha.raw.figure) + theme(strip.text.y = element_blank()) + ggtitle("Changsha")
+changsha.diff <- diffplot(changsha.diff.figure) + remove_y
+
+p.raw <- chengdu.raw/changsha.raw + plot_layout(guides = 'collect')&theme(legend.position = 'bottom')
+p.diff <- chengdu.diff/changsha.diff + plot_layout(guides = 'collect')&theme(legend.position = 'bottom')
+
+p.combine <- (chengdu.raw + chengdu.diff)/(changsha.raw + changsha.diff) + plot_layout(guides = 'collect')&theme(legend.position = 'bottom')
+p.combine
+ggsave("figures/combine.png",width = 14, height =9)
+# p.raw | p.diff + plot_layout(guides = 'collect')&theme(legend.position = 'bottom')
+```
+
