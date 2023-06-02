@@ -33,16 +33,16 @@ with open("Directory.txt") as f:
         pathdict[language] = path
 ####################Change the current language#################3
 current_directory = pathdict[current_lang]
-directory_textgrid = current_directory + "/textgrid_pitch_batch/**/*.TextGrid"
+directory_textgrid = current_directory + "/textgrid_pitch_batch/*.TextGrid" # Add /**/ if want to read subfolders as well
 directory_sound = current_directory + "/sound_original/"
 ####################Specify the output file####################
 output_tsv_name = "./extract_acoustics_results/" + today + str(current_lang) + "_data.tsv"
 output_tsv = open(output_tsv_name,"w")
-output_tsv.write("\t".join(["filename","enum","idx", "character", "case", "minTime", "maxTime", "rhyme", "rhyme_duration", "f0min", "f0max", "f0min_time", "f0max_time", "t1","t2","t3","t4","t5","t6","t7","t8","t9","t10"]) + "\n")
+output_tsv.write("\t".join(["filename","enum","defaultf0floor","defaultf0ceiling","idx", "character", "case", "minTime", "maxTime", "rhyme", "rhyme_duration", "f0min", "f0max", "f0min_time", "f0max_time", "t1","t2","t3","t4","t5","t6","t7","t8","t9","t10"]) + "\n")
 # "t11","t12","t13","t14","t15","t16","t17","t18","t19","t20"
 output2_tsv_name = "./extract_acoustics_results/" + today + str(current_lang) + "_realf0_data.tsv"
 output2_tsv = open(output2_tsv_name,"w")
-output2_tsv.write("\t".join(["filename","enum", "idx", "character", "case", "minTime", "maxTime", "rhyme", "time","f0"]) + "\n")
+output2_tsv.write("\t".join(["filename","enum", "defaultf0floor","defaultf0ceiling","idx", "character", "case", "minTime", "maxTime", "rhyme", "time","f0"]) + "\n")
 
 # Play with the actual annotation dataframe
 textgrid_files = glob.glob(directory_textgrid,recursive = True)
@@ -52,7 +52,11 @@ fulldata_char = pd.DataFrame()
 SFP_dict = {}
 ADD_dict = {}
 REP_dict = {}
+
+# Count the files
+nfile = 0
 for file in textgrid_files:
+    nfile += 1
     ## Propcess the Textgrid for duration information
     tg = textgrid.TextGrid.fromFile(file)
     char_tier_manual = tg[4]
@@ -169,8 +173,12 @@ for file in textgrid_files:
     #             pointprocess = call(sound, "To PointProcess (periodic, cc)", defaultf0floor, defaultf0ceiling)
     #             pointprocess.save(current_directory + "/textgrid_pitch_batch/" + textgridname[:-9] + ".PointProcess")
     # Check if pointprocess file exist
-    pointprocessname = current_directory + "/textgrid_pitch_batch/" + textgridname[:-9] + ".PointProcess"
-    if os.path.isfile(pointprocessname):
+    pointprocessname = current_directory + "/textgrid_pitch_batch/" + textgridname.split("_")[0] + ".PointProcess"
+    pitchname = current_directory + "/textgrid_pitch_batch/" + textgridname.split("_")[0] + ".Pitch"
+    if os.path.isfile(pitchname):
+        pitch2 = parselmouth.read(pitchname)
+        # print(pitchname)
+    elif os.path.isfile(pointprocessname):
         pointprocess = parselmouth.read(pointprocessname)
         pitchtier = call(pointprocess, "To PitchTier", 0.02)
         pitch2 = call(pitchtier, "To Pitch", 0.02, defaultf0floor, defaultf0ceiling)
@@ -248,6 +256,8 @@ for file in textgrid_files:
         out = []
         out.append(textgridname.split("_")[0])
         out.append(str(i)) #as unique ID
+        out.append(str(float("{:.0f}".format(defaultf0floor))))
+        out.append(str(float("{:.0f}".format(defaultf0ceiling))))
         out.extend([str(sen_index_manual[i]), char_manual[i], case_manual[i], str(mintime_char_manual[i]), str(maxtime_char_manual[i])])
         if sen_index_manual[i] in sen_index_rhyme:
             # Print norm time rhyme info
@@ -259,6 +269,8 @@ for file in textgrid_files:
                 out2 = []
                 out2.append(textgridname.split("_")[0])
                 out2.append(str(i)) #as unique ID
+                out2.append(str(float("{:.0f}".format(defaultf0floor))))
+                out2.append(str(float("{:.0f}".format(defaultf0ceiling))))
                 out2.extend([str(sen_index_manual[i]), char_manual[i], case_manual[i], str(mintime_char_manual[i]), str(maxtime_char_manual[i])])
                 out2.append(rhyme_puref0_series[rhyme_index][0])
                 out2.extend(list(tup))
@@ -266,6 +278,9 @@ for file in textgrid_files:
                 output2_tsv.write("\t".join(out2) + "\n")
         output_tsv.write("\t".join(out) + "\n")
 
+
+# Report the number of files
+print("Number of files processed: ", str(nfile))
 # Print some information to make sure it looks right
 print("REP dictionary")
 for k, v in sorted(REP_dict.items(),key=lambda x: x[1], reverse=True):
