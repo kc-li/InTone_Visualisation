@@ -1,0 +1,103 @@
+---
+title: "230403Visualisation_Chengdu"
+output: html_document
+date: "2023-04-03"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r setup, include=FALSE}
+library(readr)
+library(dplyr)
+library(stringr)
+library(ggplot2)
+library(tidyr)
+
+data.clean <- function(dataframe){
+  dataframe <- dataframe %>%
+    mutate(
+    dia = str_extract(filename,"diaN?[1-2]?n?"),
+    condition = str_split_i(filename, "diaN?[1-2]?n?",-1),
+    focus = str_sub(filename,-1,-1),
+    tone = str_sub(condition,1,str_length(condition)-1),
+    participant = str_extract(filename, "S[0-9]+"),
+    char_duration = maxTime - minTime,
+    tone = as.factor(tone),
+    focus = as.factor(focus),
+    participant = as.factor(participant)
+  )
+}
+```
+
+# Read data
+```{r basic clean}
+chengdu.raw <- read_tsv("./datafile/Chengdu_data.tsv", col_names = TRUE,show_col_types = FALSE)
+chengdu.clean <- data.clean(chengdu.raw)
+
+# Add a new variable for the last word in the sentence
+## Note: chengdu condition 3 needs modification! the last sentence is not part of the word
+chengdu.clean <- chengdu.clean %>%
+  group_by(filename) %>%
+  mutate(
+    boundary = if_else(idx == max(idx, na.rm = TRUE),1,0)
+  ) %>%
+  ungroup()
+```
+
+```{r transform}
+chengdu.long_initial <- chengdu.clean %>%
+  pivot_longer(cols = matches('t[0-9]+', ignore.case = FALSE), names_to = "Time",names_prefix = "t", values_to = "f0") %>% # Convert to the standard long format
+  group_by(participant) %>%
+  mutate(
+    f0ref = mean(f0, na.rm = T),
+    f0_semi = 12*log(f0/f0ref,2)
+  ) %>%
+  ungroup()
+
+chengdu.wide <- chengdu.long_initial %>% 
+  select(-minTime, -maxTime,-condition,-rhyme_duration,-f0min,-f0max,-f0min_time,-f0max_time) %>%
+  pivot_wider(id_cols = c("idx","boundary", "rhyme", "case","participant","dia", "tone","Time"),
+    names_from = focus,
+    names_prefix = "F",
+    values_from = f0_semi) %>%
+  mutate(F2_1 = F2-F1,
+         F5_1 = F5-F1,
+         F2_5 = F2-F5) 
+
+chengdu.long <- chengdu.wide %>%
+  pivot_longer(
+      cols = starts_with("F"),
+      names_to = "FocusCon",
+      values_to = "F0_semi"
+    )
+  
+```
+
+```{r fig data}
+chengdu.long.sen <- chengdu.long %>%
+  filter(idx ==1 | idx == 2 | idx ==3 | idx ==4 |idx ==5 |idx == 6 | idx == 7) %>%
+  mutate(
+    Time = as.numeric(Time),
+    case = factor(case,levels=c("Name(prefix)","Name","Verb","Aspect", "Classifier", "Object","Object(suffix)")),
+    FocusCon = factor(FocusCon, levels = c("F1","F2","F5","F2_1","F5_1","F2_5")),
+    tone = factor(tone, levels = c("A","B","C","D"), labels = c("T1","T2","T3","T4")),
+    underfocus = case_when(
+      FocusCon == "F2" & case == "Name" ~ 1,
+      FocusCon == "F5" & case == "Object" ~ 1,
+      TRUE ~ 0
+    ),
+    underfocus = as.factor(underfocus)
+  ) %>%
+  group_by(idx, Time, FocusCon) %>%
+  mutate(
+    F0_semi_scale = F0_semi-mean(F0_semi)
+  ) %>%
+  ungroup() 
+```
+
+
+```{r save the current file}
+write.csv(chengdu.long.sen, "./clean/Chengdu_long_sen.csv", row.names = FALSE)
+```
