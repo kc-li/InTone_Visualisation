@@ -8,8 +8,10 @@ from parselmouth.praat import call
 import math
 from datetime import date #add today's date
 import difflib as dl
+from bisect import bisect
 ####### Current language#######
-current_lang = "Cantonese"
+current_lang = "Chengdu"
+f0points = 10 #for Prosody Visualisation challenges, I plotted 20 points for each syllable for smoothier curve.
 today = date.today()
 today = today.strftime("%y%m%d")
 # Read the excel
@@ -18,8 +20,8 @@ Template = Template.drop("Original",axis=1)
 Template["Case"] = Template["Case"].str.split(",")
 Template["Sen_index"] = Template["Sen_index"].str.split(",")
 # Compare if len(Trim) == len(Case) for each row (When you want to check the output)
-print(Template["Trim"].str.len().compare(Template["Case"].str.len()))
-print(Template["Trim"].str.len().compare(Template["Sen_index"].str.len()))
+# print(Template["Trim"].str.len().compare(Template["Case"].str.len()))
+# print(Template["Trim"].str.len().compare(Template["Sen_index"].str.len()))
 # Convert to dictionary 
 template = Template.set_index("Label").T.to_dict("list")
 
@@ -31,18 +33,20 @@ with open("Directory.txt") as f:
     for line in  f:
         (language,path) = line.strip().split(":")
         pathdict[language] = path
-####################Change the current language#################3
+####################Change the current language################
 current_directory = pathdict[current_lang]
 directory_textgrid = current_directory + "/textgrid_pitch_batch/*.TextGrid" # Add /**/ if want to read subfolders as well
 directory_sound = current_directory + "/sound_original/"
 ####################Specify the output file####################
 output_tsv_name = "./extract_acoustics_results/" + today + str(current_lang) + "_data.tsv"
 output_tsv = open(output_tsv_name,"w")
-output_tsv.write("\t".join(["filename","enum","defaultf0floor","defaultf0ceiling","idx", "character", "case", "minTime", "maxTime", "rhyme", "rhyme_duration", "f0min", "f0max", "f0min_time", "f0max_time", "t1","t2","t3","t4","t5","t6","t7","t8","t9","t10"]) + "\n")
-# "t11","t12","t13","t14","t15","t16","t17","t18","t19","t20"
+# specify the series based on number of points
+step_list = ["step" + str(i+1) for i in range(0,f0points)]
+t_list = ["t" + str(i+1) for i in range(0,f0points)]
+output_tsv.write("\t".join(["filename","enum","defaultf0floor","defaultf0ceiling","idx", "character", "case", "minTime", "maxTime", "char_duration", "boundary", "syl_rhyme", "syl_rhyme_minTime", "syl_rhyme_maxTime", "syl_rhyme_duration", "rhyme", "rhyme_minTime", "rhyme_maxTime", "rhyme_duration", "f0min", "f0max", "f0min_time", "f0max_time"] + step_list + t_list) + "\n")
 output2_tsv_name = "./extract_acoustics_results/" + today + str(current_lang) + "_realf0_data.tsv"
 output2_tsv = open(output2_tsv_name,"w")
-output2_tsv.write("\t".join(["filename","enum", "defaultf0floor","defaultf0ceiling","idx", "character", "case", "minTime", "maxTime", "rhyme", "time","f0"]) + "\n")
+output2_tsv.write("\t".join(["filename","enum", "defaultf0floor","defaultf0ceiling","idx", "character", "case", "minTime", "maxTime", "boundary", "rhyme", "time","f0"]) + "\n")
 
 # Play with the actual annotation dataframe
 textgrid_files = glob.glob(directory_textgrid,recursive = True)
@@ -70,6 +74,7 @@ for file in textgrid_files:
     maxtime_char_manual[:] = [ele2 for ele1, ele2 in zip(char_manual,maxtime_char_manual) if ele1 != "" and ele1 != "sp"]   
     char_manual = list(filter(None,char_manual))
     char_manual = list(filter(lambda a: a != 'sp', char_manual))
+    assert len(char_manual) == len(mintime_char_manual) == len(maxtime_char_manual)
     # Match the condition
     textgridname = file.split("/")[-1]
     condition = re.split("diaN?[1-2]?n?",textgridname.split("_")[0])[1]
@@ -79,24 +84,12 @@ for file in textgrid_files:
     template_char = template[condition][0]
     Case = template[condition][1].copy()
     Sen_index = template[condition][2].copy()
-
-    # Special case correction:
-    # if current_lang == "Cantonese":
-    #     if textgridname == "S17dia2AT3_checked.TextGrid":
-    #         template_char = template_char[4:]
-    #         Case = Case[4:]
-    #         Sen_index = Sen_index[4:]
-    # Clean up condition 4
-    # if condition_focus == "4": 
-    #     char_manual = char_manual[:char_manual.index(template_char[-1])+1]
-    #     mintime_char_manual = mintime_char_manual[:char_manual.index(template_char[-1])+1]
-    #     maxtime_char_manual = maxtime_char_manual[:char_manual.index(template_char[-1])+1]
-    # New version of using diff functions
+    # Using using diff functions
     d = dl.SequenceMatcher(None, char_manual, template_char)
     info = d.get_opcodes()
     # Inherent the template sequence and then change
-    case_manual = ["0"]*len(char_manual)
-    sen_index_manual = ["0"]*len(char_manual)
+    case_manual = ["0.1"]*len(char_manual)
+    sen_index_manual = ["0.1"]*len(char_manual)
     for tag, i1, i2, j1, j2 in info:
         # eqaul
         if tag == "equal": # string b
@@ -118,32 +111,43 @@ for file in textgrid_files:
                 if char_manual[i] in ADD_dict:
                     ADD_dict[char_manual[i]] += 1
                 else: ADD_dict[char_manual[i]] = 1
-    # Specify the SFP category
-    if case_manual[-1] == "ADD" and case_manual[-2] != "ADD":
+    ########################## Specify the SFP category: language dependent #####################
+    # # find the value of sen_index, and locate
+    critical_index = sen_index_manual.index(max(sen_index_manual)) + 1
+    # it should be either the last token in the sentence (the order of two conditions are important; to prevent 'out of range' problem')
+    if critical_index + 1 == len(char_manual) and case_manual[critical_index] == "ADD":
         case_manual[-1] = "SFP"
         if char_manual[-1] in SFP_dict:
             SFP_dict[char_manual[-1]] += 1
             ADD_dict[char_manual[-1]] -=1
         else: 
             SFP_dict[char_manual[-1]] = 1
-            ADD_dict[char_manual[-1]] -=1
-    # Print and see special
-    # if "SFP" in case_manual:
-    #     print(char_manual)
-    #     print(case_manual)
-    #     print(sen_index_manual)
+            ADD_dict[char_manual[-1]] -=1      
     # Check if the length of list is equal
     assert len(char_manual) == len(mintime_char_manual) == len(maxtime_char_manual) == len(sen_index_manual) == len(case_manual)
-    
+
+
     ## Incorporate the f0 infomation
     textgridname = file.split("/")[-1]
     soundname = directory_sound + textgridname.split("_")[0] + ".wav"
     sound = parselmouth.Sound(soundname)
     f0_tier = tg[6]
+    syl_tier = tg[5]
+
+    # Get syl_tier info
+    syl_label = [syl_tier[i].mark for i in range(0, len(syl_tier))]
+    mintime_syl = [syl_tier[i].minTime for i in range(0,len(syl_tier))]
+    maxtime_syl = [syl_tier[i].maxTime for i in range(0,len(syl_tier))]
+
+    # Get f0 tier info
+    f0_label = [f0_tier[i].mark for i in range(0, len(f0_tier))]
+    mintime_f0 = [f0_tier[i].minTime for i in range(0,len(f0_tier))]
+    maxtime_f0 = [f0_tier[i].maxTime for i in range(0,len(f0_tier))]
+
     ######################## Time parameters ######################################
     # Note that the table title needs to be changed accordingly
     # Normtime: The number of points extracted from each interval
-    number_of_points = 10
+    number_of_points = f0points
     # Time: Sampling rate
     time_step = 0.01
     ##############################################################################
@@ -159,19 +163,7 @@ for file in textgrid_files:
     # The second pass
     defaultf0floor = math.floor((0.7 * q1)/ 10) * 10
     defaultf0ceiling = math.ceil((2.5 * q3)/ 10) * 10
-    ## Ad-hoc modification (generate point process)
-    # if current_lang == "Chengdu":
-    #     if textgridname == "S2diaD2_checked.TextGrid":
-    #         pointprocessname = current_directory + "/textgrid_pitch_batch/" + textgridname[:-9] + ".PointProcess"
-    #         if not os.path.isfile(pointprocessname):
-    #             pointprocess = call(sound, "To PointProcess (periodic, cc)", defaultf0floor, defaultf0ceiling)
-    #             pointprocess.save(current_directory + "/textgrid_pitch_batch/" + textgridname[:-9] + ".PointProcess")
-    # if current_lang == "Changsha":
-    #     if textgridname == "S22diaN1F5_checked.TextGrid" or textgridname == "S22diaB5_checked.TextGrid":
-    #         pointprocessname = current_directory + "/textgrid_pitch_batch/" + textgridname[:-9] + ".PointProcess"
-    #         if not os.path.isfile(pointprocessname):
-    #             pointprocess = call(sound, "To PointProcess (periodic, cc)", defaultf0floor, defaultf0ceiling)
-    #             pointprocess.save(current_directory + "/textgrid_pitch_batch/" + textgridname[:-9] + ".PointProcess")
+
     # Check if pointprocess file exist
     pointprocessname = current_directory + "/textgrid_pitch_batch/" + textgridname.split("_")[0] + ".PointProcess"
     pitchname = current_directory + "/textgrid_pitch_batch/" + textgridname.split("_")[0] + ".Pitch"
@@ -188,19 +180,25 @@ for file in textgrid_files:
     rhyme_info_series = []
     rhyme_puref0_series = []
     sen_index_rhyme = []
+    index_tuple_series = []
+
     for i in range(0, len(f0_tier)):
         rhyme_label = f0_tier[i].mark
         if rhyme_label != "":
             start = f0_tier[i].minTime
             end = f0_tier[i].maxTime
-            
-            # Get normtime f0
             duration = end-start
+            duration_formatted = float("{:.5f}".format(duration))
+
+            # Get normtime f0
             f0_norm = []
+            normtime_series = []
             # It's better to start with 1, so excluding some purtabation period
             for x in range(1,number_of_points+1):
-                normtime = start + duration*(x-1)/(number_of_points)
-                f0_at_normtime = call(pitch2, "Get value at time", normtime, 'Hertz', 'Linear')
+                current_normtime = start + duration*(x-1)/(number_of_points)
+                current_normtime_formatted = float("{:.5f}".format(current_normtime))
+                normtime_series.append(current_normtime_formatted)
+                f0_at_normtime = call(pitch2, "Get value at time", current_normtime, 'Hertz', 'Linear')
                 f0_at_normtime_formatted = float("{:.3f}".format(f0_at_normtime))
                 f0_norm.append(f0_at_normtime_formatted)
                 # print(normtime, "\t", f0_at_normtime_formatted)
@@ -215,23 +213,26 @@ for file in textgrid_files:
             f0max_time = call(pitch2, "Get time of maximum", start, end, "Hertz", "Parabolic")
             #print(label, "\t", f0min_time, "\t",f0max_time)
             ## Compare the number stamp, to map the rhyme tier to the processed character tier
-            # Consider mapping to the already built character tier
+
+            # Consider mapping to the already built character tier and syllable tier
             mid = (start+end)/2
-            # Compare
-            index = 0
-            # the last interval causes problem; filter it first
-            while index < len(mintime_char_manual) and mid > mintime_char_manual[index]:
-                index += 1
-            # The actual index is actually one step back
-            index = index-1
-            # !This is the index in the original list, that can be used to map with the previous list!
-            # check the tiem stamp in between two values
-            assert mid < maxtime_char_manual[index]
-            sen_index_rhyme.append(sen_index_manual[index])
-            rhyme_info = [rhyme_label, str(duration), str(f0min_formatted), str(f0max_formatted),str(f0min_time),str(f0max_time)]
-            f0_norm_string = map(str, f0_norm)
-            rhyme_info.extend(f0_norm_string)
-            rhyme_info_series.append(rhyme_info)
+            cor_index_char = bisect(mintime_char_manual, mid)-1
+            cor_index_syl = bisect(mintime_syl, mid)-1
+            # test: Print if error emerges. One possible error is accidental space. Go back to file and correct this.
+            # print(textgridname)
+            # print(syl_label[cor_index_syl])
+            # print(rhyme_label)
+            assert syl_label[cor_index_syl] == rhyme_label
+            # Save the correlated index
+            index_tuple = (cor_index_char,cor_index_syl,i)
+            index_tuple_series.append(index_tuple)
+
+            # Save rhyme_info
+            rhyme_info = [rhyme_label, str(start), str(end), str(duration_formatted), str(f0min_formatted), str(f0max_formatted),str(f0min_time),str(f0max_time)]
+            rhyme_info.extend(map(str, normtime_series))
+            rhyme_info.extend(map(str, f0_norm))
+            rhyme_info_zip = (i, rhyme_info)
+            rhyme_info_series.append(rhyme_info_zip)
             # print(rhyme_info)
 
             # Get unnormalised f0
@@ -247,10 +248,18 @@ for file in textgrid_files:
                 time += time_step
             assert len(time_series) == len(f0)
             f0_zipped = list(zip(map(str,time_series), map(str,f0)))
-            rhyme_puref0 = [rhyme_label, f0_zipped]
-            rhyme_puref0_series.append(rhyme_puref0)
-            
+            rhyme_puref0 = (i, rhyme_label, f0_zipped)
+            rhyme_puref0_series.append(rhyme_puref0)     
+    
+    # flatten the tuple list
+    index_tuple_series = list(zip(*index_tuple_series))
+    rhyme_info_series = list(zip(*rhyme_info_series))
+    rhyme_puref0_series = list(zip(*rhyme_puref0_series))
+    # print(char_manual)
+    # print(rhyme_puref0_series)
     # print(rhyme_info_series)
+    # print(index_tuple_series)
+
     # Write lines to file
     for i in range(0,len(char_manual)):
         out = []
@@ -258,26 +267,63 @@ for file in textgrid_files:
         out.append(str(i)) #as unique ID
         out.append(str(float("{:.0f}".format(defaultf0floor))))
         out.append(str(float("{:.0f}".format(defaultf0ceiling))))
-        out.extend([str(sen_index_manual[i]), char_manual[i], case_manual[i], str(mintime_char_manual[i]), str(maxtime_char_manual[i])])
-        if sen_index_manual[i] in sen_index_rhyme:
-            # Print norm time rhyme info
-            rhyme_index = sen_index_rhyme.index(sen_index_manual[i])
-            out.extend(rhyme_info_series[rhyme_index])
-            # Print real time rhyme info
-            # rhyme_puref0_series[rhyme_index][1] is the zipped list
-            for tup in rhyme_puref0_series[rhyme_index][1]:
+        # char_duration
+        char_duration = maxtime_char_manual[i] - mintime_char_manual[i]
+        char_duration_formatted = float("{:.5f}".format(char_duration))
+        out.extend([str(sen_index_manual[i]), char_manual[i], case_manual[i], str(mintime_char_manual[i]), str(maxtime_char_manual[i]), str(char_duration_formatted)])
+        
+        # append if boundary
+        if sen_index_manual[i] == max(sen_index_manual):
+            out.append("1")
+        else:
+            out.append("0")
+
+        # if the current index is in the tuple list
+        if i in index_tuple_series[0]:
+            cor_index = index_tuple_series[0].index(i)
+            syl_index = index_tuple_series[1][cor_index]
+            rhyme_index = index_tuple_series[2][cor_index]
+
+            # export duration from syllable tier
+            out.append(syl_label[syl_index])
+            # if maxtime_syl[syl_index] > maxtime_char_manual[i]:
+            #     print(textgridname.split("_")[0])
+            #     print(char_manual[i])
+            assert mintime_syl[syl_index] >= mintime_char_manual[i]
+            # if maxtime_syl[syl_index] > maxtime_char_manual[i]:
+            #     print(textgridname.split("_")[0])
+            #     print(char_manual[i])
+            #     print(syl_label[syl_index])
+            assert maxtime_syl[syl_index] <= maxtime_char_manual[i]
+            syllable_rhyme_duration = maxtime_syl[syl_index]-mintime_syl[syl_index]
+            syllable_rhyme_duration_formatted = float("{:.5f}".format(syllable_rhyme_duration))
+
+            out.append(str(mintime_syl[syl_index]))
+            out.append(str(maxtime_syl[syl_index]))
+            out.append(str(syllable_rhyme_duration_formatted))
+            # Access rhyme information
+            rhyme_info_index = rhyme_info_series[0].index(rhyme_index)
+            out.extend(rhyme_info_series[1][rhyme_info_index])
+            # print(out)
+    
+            for tup in rhyme_puref0_series[2][rhyme_info_index]:
                 out2 = []
                 out2.append(textgridname.split("_")[0])
                 out2.append(str(i)) #as unique ID
                 out2.append(str(float("{:.0f}".format(defaultf0floor))))
                 out2.append(str(float("{:.0f}".format(defaultf0ceiling))))
                 out2.extend([str(sen_index_manual[i]), char_manual[i], case_manual[i], str(mintime_char_manual[i]), str(maxtime_char_manual[i])])
-                out2.append(rhyme_puref0_series[rhyme_index][0])
+                if sen_index_manual[i] == max(sen_index_manual):
+                    out2.append("1")
+                else:
+                    out2.append("0")
+                # rhyme_label
+                out2.append(rhyme_puref0_series[1][rhyme_info_index])
+                # time - f0
                 out2.extend(list(tup))
                 # print(out2)
                 output2_tsv.write("\t".join(out2) + "\n")
         output_tsv.write("\t".join(out) + "\n")
-
 
 # Report the number of files
 print("Number of files processed: ", str(nfile))
