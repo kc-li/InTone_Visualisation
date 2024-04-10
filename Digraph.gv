@@ -1,0 +1,16 @@
+// Outline
+digraph {
+	CheckB [label="Check segmentation"]
+	Modify [label="Modify boundary (syllbable or f0)" shape=box]
+	Generatef0 [label="Generate f0 tier"]
+	Extract [label="Extract f0 and duration"]
+	Check [label="Detect f0 tracking error
+Check data visualisation" shape=diamond]
+	Finish [label="Analyse data in R"]
+	CheckB -> Generatef0
+	Generatef0 -> Extract
+	Modify -> Extract [style=dashed]
+	Extract -> Check
+	Check -> Finish [label=good]
+	Check -> Modify [label=problem style=dashed]
+}
